@@ -1,0 +1,29 @@
+# Config file for training a neural network on the MNIST dataset
+
+# Dataset configuration
+data:
+  batch_size: 32
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
+
+# Model configuration
+model:
+  name: MNISTModel
+  hidden_dim: 128
+  dropout: 0.2
+
+# Trainer configuration
+trainer:
+  devices: 1
+  accelerator: "gpu"
+  max_epochs: 2
+  precision: 32
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+
+# Optimizer configuration
+optimizer:
+  name: Adam
+  lr: 0.001
+  weight_decay: 0.0
