@@ -1,7 +1,8 @@
+#!/usr/bin/env python3
 import torch
-import torchvision
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
+from datamodule.mnist import MNISTDataModule
 import hydra
 
 
@@ -75,30 +76,12 @@ class MNISTModel(pl.LightningModule):
         return optimizer
 
 
-@hydra.main(config_path="config", config_name="train")
+@hydra.main(version_base="1.3", config_path="config", config_name="train")
 def run(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
     pl.seed_everything(42)
 
-    # train loader
-    train_data = torchvision.datasets.MNIST(
-        'data', train=True, download=True,
-        transform=torchvision.transforms.ToTensor())
-
-    train_loader = torch.utils.data.DataLoader(
-        train_data, batch_size=cfg.data.batch_size,
-        num_workers=cfg.data.num_workers, shuffle=cfg.data.shuffle,
-        pin_memory=cfg.data.pin_memory)
-
-    # val loader
-    val_data = torchvision.datasets.MNIST(
-        'data', train=False, download=True,
-        transform=torchvision.transforms.ToTensor())
-    val_loader = torch.utils.data.DataLoader(val_data,
-                                             batch_size=cfg.data.batch_size,
-                                             num_workers=cfg.data.num_workers,
-                                             shuffle=False,
-                                             pin_memory=cfg.data.pin_memory)
+    datamodule = MNISTDataModule(cfg.data)
 
     model = MNISTModel(cfg)
     trainer = pl.Trainer(
@@ -110,9 +93,8 @@ def run(cfg: DictConfig) -> None:
         gradient_clip_val=cfg.trainer.gradient_clip_val)
 
     # Train the model and compute the validation metrics
-    trainer.fit(model, train_dataloaders=train_loader,
-                val_dataloaders=val_loader)
-    results = trainer.test(model, dataloaders=val_loader)
+    trainer.fit(model, datamodule=datamodule)
+    results = trainer.test(model, datamodule=datamodule)
     print('Validation accuracy:', results)
 
 
