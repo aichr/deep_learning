@@ -14,3 +14,8 @@ See [requirements.txt](requirements.txt)
 ```
 
 Code: [mnist_train.py](mnist_train.py)
+
+### Command
+```bash
+python3 train.py
+```

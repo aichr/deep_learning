@@ -10,7 +10,7 @@ data:
 
 # Model configuration
 model:
-  name: MNISTModel
+  _target_: model.mnist.MNISTModel
   hidden_dim: 128
   dropout: 0.2
 

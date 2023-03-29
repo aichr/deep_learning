@@ -6,55 +6,52 @@ from datamodule.mnist import MNISTDataModule
 import hydra
 
 
-class MNISTModel(pl.LightningModule):
+class LitModule(pl.LightningModule):
+    """A generic boilerplate PyTorch-Lightning module
+    """
+
     def __init__(self, cfg: DictConfig):
         super().__init__()
         self.save_hyperparameters(cfg)
+        self.model = hydra.utils.instantiate(cfg.model)
         self.validation_step_outputs = []
 
-        self.l1 = torch.nn.Linear(28 * 28, self.hparams.model.hidden_dim)
-        self.dropout = torch.nn.Dropout(self.hparams.model.dropout)
-        self.l2 = torch.nn.Linear(self.hparams.model.hidden_dim, 10)
-
     def forward(self, x):
-        x = x.view(x.size(0), -1)
-        x = self.l1(x)
-        x = torch.nn.functional.relu(x)
-        x = self.dropout(x)
-        x = self.l2(x)
-        return x
+        return self.model.forward(x)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self.forward(x)
-        loss = torch.nn.functional.cross_entropy(y_hat, y)
-        self.log('train_loss', loss)
-        return loss
+        train_loss, pred = self.model.compute_loss(batch, batch_idx)
+        step_output = self.model.log_step(
+            train_loss, pred, batch, batch_idx, prefix="train/")
+
+        # log step output
+        for key, value in step_output.items():
+            self.log(key, value, on_step=True, on_epoch=False,
+                     prog_bar=True, logger=True)
+        return train_loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self.forward(x)
-        val_loss = torch.nn.functional.cross_entropy(y_hat, y)
-        preds = torch.argmax(y_hat, dim=1)
-        acc = torch.sum(preds == y).float() / y.size(0)
+        val_loss, pred = self.model.compute_loss(batch, batch_idx)
+        step_output = self.model.log_step(
+            val_loss, pred, batch, batch_idx, prefix="val/")
 
-        self.log('val_loss', val_loss, on_step=False,
-                 on_epoch=True, prog_bar=True)
-        self.log('val_acc', acc, on_step=False, on_epoch=True, prog_bar=True)
-
-        step_output = {"val_loss": val_loss, "val_acc": acc}
+        # log step output
+        for key, value in step_output.items():
+            self.log(key, value, on_step=True, on_epoch=False,
+                     prog_bar=False, logger=True)
         self.validation_step_outputs.append(step_output)
 
     def test_step(self, batch, batch_idx):
         self.validation_step(batch, batch_idx)
 
     def val_test_epoch_end(self):
-        avg_loss = torch.stack([x['val_loss']
-                               for x in self.validation_step_outputs]).mean()
-        avg_acc = torch.stack([x['val_acc']
-                              for x in self.validation_step_outputs]).mean()
-        self.log('avg_val_loss', avg_loss, on_epoch=True, prog_bar=True)
-        self.log('avg_val_acc', avg_acc, on_epoch=True, prog_bar=True)
+        # accumulate the validation step outputs for each key
+        for key in self.validation_step_outputs[0].keys():
+            values = torch.stack([x[key]
+                                 for x in self.validation_step_outputs])
+            mean_value = values.mean()
+            self.log("epoch_"+key, mean_value, on_epoch=True, prog_bar=True)
+
         self.validation_step_outputs.clear()
 
     def on_validation_epoch_end(self):
@@ -83,7 +80,7 @@ def run(cfg: DictConfig) -> None:
 
     datamodule = MNISTDataModule(cfg.data)
 
-    model = MNISTModel(cfg)
+    model = LitModule(cfg)
     trainer = pl.Trainer(
         devices=cfg.trainer.devices,
         accelerator=cfg.trainer.accelerator,
