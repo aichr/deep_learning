@@ -2,18 +2,19 @@ import os
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import pytorch_lightning as pl
-from omegaconf import DictConfig
 
 
 class MNISTDataModule(pl.LightningDataModule):
 
-    def __init__(self, cfg: DictConfig):
+    def __init__(
+            self, data_dir: str, batch_size: int, num_workers: int,
+            shuffle: bool = True, pin_memory: bool = True):
         super().__init__()
-        self.data_dir = cfg.data_dir
-        self.batch_size = cfg.batch_size
-        self.num_workers = cfg.num_workers
-        self.shuffle = cfg.shuffle
-        self.pin_memory = cfg.pin_memory
+        self.data_dir = data_dir
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.shuffle = shuffle
+        self.pin_memory = pin_memory
 
     def prepare_data(self):
         is_download = True

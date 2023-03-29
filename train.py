@@ -2,7 +2,6 @@
 import torch
 import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
-from datamodule.mnist import MNISTDataModule
 import hydra
 
 
@@ -78,7 +77,7 @@ def run(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
     pl.seed_everything(42)
 
-    datamodule = MNISTDataModule(cfg.data)
+    datamodule = hydra.utils.instantiate(cfg.data)
 
     model = LitModule(cfg)
     trainer = pl.Trainer(
